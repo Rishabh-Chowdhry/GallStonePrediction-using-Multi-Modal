@@ -260,8 +260,13 @@ def load_models():
             pass
 
         return model, scaler, feature_names, cnn_model, bio_scaler, bio_feature_names
+    except FileNotFoundError as e:
+        st.warning("⚠️ Trained models not found. Running in demo mode with rule-based predictions.")
+        st.info("For full functionality, ensure model files are available in the 'models/' directory.")
+        return None, None, None, None, None, None
     except Exception as e:
         st.error(f"Error loading models: {e}")
+        st.info("Falling back to demo mode.")
         return None, None, None, None, None, None
 
 def preprocess_image(image_file):
@@ -576,6 +581,7 @@ def main():
         st.markdown('<h2 class="section-header">🔍 Model Interpretation</h2>', unsafe_allow_html=True)
 
         if model is not None:
+            st.info("🔬 Model interpretation features available with trained models.")
             st.markdown("### 🎯 Feature Importance")
 
             # Feature Importance Plot
@@ -672,7 +678,15 @@ def main():
                     st.info("Using pre-computed SHAP visualizations if available.")
 
         else:
-            st.warning("Model not available for interpretation.")
+            st.warning("🧠 Trained models not available for interpretation.")
+            st.info("💡 **Demo Mode**: Model interpretation requires trained models to analyze feature importance and SHAP values.")
+            st.markdown("""
+            **Available in Full Mode:**
+            - Feature importance analysis
+            - SHAP value explanations
+            - Model decision interpretability
+            - Interactive feature effect plots
+            """)
 
     # Prediction Page
     elif page == "🔮 Prediction":
@@ -856,7 +870,18 @@ def main():
                                     st.error(f"Image analysis failed: {str(e)}")
                                     st.info("This may be due to limited image processing capabilities in the current environment.")
                     else:
-                        st.warning("CNN model not available for image analysis.")
+                        st.warning("🧠 CNN model not available. Image analysis requires trained models.")
+                        st.info("💡 **Demo Mode**: Upload images to see preprocessing, but predictions need trained models.")
+                        if st.button("🔍 Show Image Processing Demo", key="image_demo"):
+                            with st.spinner("Processing image..."):
+                                try:
+                                    uploaded_file.seek(0)
+                                    processed_image = preprocess_image(uploaded_file)
+                                    st.success("✅ Image preprocessing successful!")
+                                    st.info(f"Processed image shape: {processed_image.shape}")
+                                    st.info("In full mode, this would be fed to the CNN model for prediction.")
+                                except Exception as e:
+                                    st.error(f"Image processing failed: {str(e)}")
 
             elif prediction_mode == "🔄 Combined Analysis":
                 st.markdown("### 🔄 Combined Biochemical + Image Analysis")
@@ -954,7 +979,11 @@ def main():
                                     st.success(f"**Combined Prediction:** {DISEASE_CLASSES[combined_prediction]}")
                                     st.info(f"**Combined Confidence:** {combined_prob[combined_prediction]*100:.2f}%")
                                 else:
-                                    st.warning("CNN model not available for image analysis in combined mode.")
+                                    st.warning("🧠 CNN model not available for combined analysis.")
+                                    st.info("💡 **Demo Mode**: Biochemical analysis completed. Image analysis requires trained models.")
+                                    st.markdown("#### Combined Analysis Result (Biochemical Only)")
+                                    st.success(f"**Combined Prediction:** {DISEASE_CLASSES[bio_prediction]}")
+                                    st.info(f"**Combined Confidence:** {bio_probabilities[bio_prediction]*100:.2f}% (based on biochemical markers only)")
                             except Exception as e:
                                 st.error(f"Combined analysis failed: {str(e)}")
                                 st.info("Biochemical analysis completed, but image processing encountered an error.")
