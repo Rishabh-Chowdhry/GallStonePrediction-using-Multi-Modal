@@ -24,13 +24,20 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import joblib
 import os
-import cv2
 from PIL import Image
 import io
 import time
 from datetime import datetime
 import warnings
 warnings.filterwarnings('ignore')
+
+# Try to import cv2, but make it optional for headless environments
+try:
+    import cv2
+    CV2_AVAILABLE = True
+except ImportError:
+    CV2_AVAILABLE = False
+    st.warning("OpenCV not available. Image processing features will be limited.")
 
 # Set page configuration
 st.set_page_config(
@@ -264,14 +271,26 @@ def preprocess_image(image_file):
         image = Image.open(io.BytesIO(image_file.read()))
         image = np.array(image)
 
-        # Convert to RGB if needed
-        if len(image.shape) == 2:
-            image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
-        elif image.shape[2] == 4:
-            image = cv2.cvtColor(image, cv2.COLOR_RGBA2RGB)
+        if CV2_AVAILABLE:
+            # Convert to RGB if needed
+            if len(image.shape) == 2:
+                image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+            elif image.shape[2] == 4:
+                image = cv2.cvtColor(image, cv2.COLOR_RGBA2RGB)
 
-        # Resize to 224x224
-        image = cv2.resize(image, (224, 224))
+            # Resize to 224x224
+            image = cv2.resize(image, (224, 224))
+        else:
+            # Fallback to PIL for basic processing
+            pil_image = Image.fromarray(image)
+            if len(image.shape) == 2:
+                pil_image = pil_image.convert('RGB')
+            elif image.shape[2] == 4:
+                pil_image = pil_image.convert('RGB')
+
+            # Resize to 224x224
+            pil_image = pil_image.resize((224, 224))
+            image = np.array(pil_image)
 
         # Normalize
         image = image.astype(np.float32) / 255.0
@@ -783,6 +802,10 @@ def main():
             elif prediction_mode == "🖼️ Medical Image Only":
                 st.markdown("### 🖼️ Medical Image Analysis")
 
+                if not CV2_AVAILABLE:
+                    st.warning("⚠️ OpenCV is not available in this environment. Image processing features are limited.")
+                    st.info("The app can still display images, but advanced image analysis may not work properly.")
+
                 uploaded_file = st.file_uploader(
                     "Upload Medical Image (JPG, PNG)",
                     type=['jpg', 'jpeg', 'png'],
@@ -797,37 +820,41 @@ def main():
                     if cnn_model is not None:
                         if st.button("🔍 Analyze Image", key="image_predict"):
                             with st.spinner("Analyzing medical image..."):
-                                # Reset file pointer
-                                uploaded_file.seek(0)
+                                try:
+                                    # Reset file pointer
+                                    uploaded_file.seek(0)
 
-                                # Preprocess image
-                                processed_image = preprocess_image(uploaded_file)
+                                    # Preprocess image
+                                    processed_image = preprocess_image(uploaded_file)
 
-                                # Make prediction
-                                cnn_pred = cnn_model.predict(np.expand_dims(processed_image, axis=0))
-                                prediction = np.argmax(cnn_pred[0])
-                                probabilities = cnn_pred[0]
+                                    # Make prediction
+                                    cnn_pred = cnn_model.predict(np.expand_dims(processed_image, axis=0))
+                                    prediction = np.argmax(cnn_pred[0])
+                                    probabilities = cnn_pred[0]
 
-                                # Display results
-                                st.success(f"**Predicted Disease:** {DISEASE_CLASSES[prediction]}")
-                                st.info(f"**Confidence:** {probabilities[prediction]*100:.2f}%")
+                                    # Display results
+                                    st.success(f"**Predicted Disease:** {DISEASE_CLASSES[prediction]}")
+                                    st.info(f"**Confidence:** {probabilities[prediction]*100:.2f}%")
 
-                                # Probability chart
-                                prob_df = pd.DataFrame({
-                                    'Disease': list(DISEASE_CLASSES.values()),
-                                    'Probability': probabilities
-                                }).sort_values('Probability', ascending=False).head(10)
+                                    # Probability chart
+                                    prob_df = pd.DataFrame({
+                                        'Disease': list(DISEASE_CLASSES.values()),
+                                        'Probability': probabilities
+                                    }).sort_values('Probability', ascending=False).head(10)
 
-                                fig = px.bar(
-                                    prob_df,
-                                    x='Probability',
-                                    y='Disease',
-                                    orientation='h',
-                                    title="Top 10 Disease Probabilities",
-                                    color='Probability',
-                                    color_continuous_scale='Greens'
-                                )
-                                st.plotly_chart(fig, use_container_width=True)
+                                    fig = px.bar(
+                                        prob_df,
+                                        x='Probability',
+                                        y='Disease',
+                                        orientation='h',
+                                        title="Top 10 Disease Probabilities",
+                                        color='Probability',
+                                        color_continuous_scale='Greens'
+                                    )
+                                    st.plotly_chart(fig, use_container_width=True)
+                                except Exception as e:
+                                    st.error(f"Image analysis failed: {str(e)}")
+                                    st.info("This may be due to limited image processing capabilities in the current environment.")
                     else:
                         st.warning("CNN model not available for image analysis.")
 
@@ -848,6 +875,9 @@ def main():
 
                 with col2:
                     st.markdown("#### Medical Image")
+                    if not CV2_AVAILABLE:
+                        st.warning("⚠️ OpenCV not available - image processing limited")
+
                     uploaded_file = st.file_uploader(
                         "Upload Medical Image (JPG, PNG)",
                         type=['jpg', 'jpeg', 'png'],
@@ -863,65 +893,71 @@ def main():
                         st.error("Please upload a medical image for combined analysis.")
                     else:
                         with st.spinner("Performing combined analysis..."):
-                            # Prepare biochemical features
-                            bio_features = [age, alt, ast, alp, bili_total, bili_direct, 1 if gender == "Male" else 0]
+                            try:
+                                # Prepare biochemical features
+                                bio_features = [age, alt, ast, alp, bili_total, bili_direct, 1 if gender == "Male" else 0]
 
-                            # Process image
-                            uploaded_file.seek(0)
-                            processed_image = preprocess_image(uploaded_file)
+                                # Process image
+                                uploaded_file.seek(0)
+                                processed_image = preprocess_image(uploaded_file)
 
-                            # Biochemical analysis using rule-based system
-                            st.markdown("#### Biochemical Analysis Result")
+                                # Biochemical analysis using rule-based system
+                                st.markdown("#### Biochemical Analysis Result")
 
-                            # Use the same rule-based prediction as standalone biochemical
-                            alt_risk = 1 if alt > 40 else 0
-                            ast_risk = 1 if ast > 40 else 0
-                            alp_risk = 1 if alp > 120 else 0
-                            bili_risk = 1 if bili_total > 1.2 or bili_direct > 0.3 else 0
+                                # Use the same rule-based prediction as standalone biochemical
+                                alt_risk = 1 if alt > 40 else 0
+                                ast_risk = 1 if ast > 40 else 0
+                                alp_risk = 1 if alp > 120 else 0
+                                bili_risk = 1 if bili_total > 1.2 or bili_direct > 0.3 else 0
 
-                            risk_score = alt_risk + ast_risk + alp_risk + bili_risk
+                                risk_score = alt_risk + ast_risk + alp_risk + bili_risk
 
-                            if risk_score >= 3:
-                                bio_prediction = 2  # Cholecystitis
-                                bio_confidence = 0.85
-                            elif risk_score >= 2:
-                                bio_prediction = 14  # Cirrhosis
-                                bio_confidence = 0.80
-                            elif risk_score >= 1:
-                                bio_prediction = 9  # Hepatitis A
-                                bio_confidence = 0.75
-                            else:
-                                bio_prediction = 0  # Gallstones
-                                bio_confidence = 0.90
+                                if risk_score >= 3:
+                                    bio_prediction = 2  # Cholecystitis
+                                    bio_confidence = 0.85
+                                elif risk_score >= 2:
+                                    bio_prediction = 14  # Cirrhosis
+                                    bio_confidence = 0.80
+                                elif risk_score >= 1:
+                                    bio_prediction = 9  # Hepatitis A
+                                    bio_confidence = 0.75
+                                else:
+                                    bio_prediction = 0  # Gallstones
+                                    bio_confidence = 0.90
 
-                            # Create biochemical probabilities
-                            bio_probabilities = np.zeros(len(DISEASE_CLASSES))
-                            bio_probabilities[bio_prediction] = bio_confidence
-                            remaining_prob = 1 - bio_confidence
-                            related_diseases = [3, 4, 7] if bio_prediction == 2 else [15, 12, 13] if bio_prediction == 14 else [10, 11, 16] if bio_prediction == 9 else [5, 6, 8]
-                            prob_per_related = remaining_prob / len(related_diseases)
-                            for disease_idx in related_diseases[:3]:
-                                bio_probabilities[disease_idx] = prob_per_related
+                                # Create biochemical probabilities
+                                bio_probabilities = np.zeros(len(DISEASE_CLASSES))
+                                bio_probabilities[bio_prediction] = bio_confidence
+                                remaining_prob = 1 - bio_confidence
+                                related_diseases = [3, 4, 7] if bio_prediction == 2 else [15, 12, 13] if bio_prediction == 14 else [10, 11, 16] if bio_prediction == 9 else [5, 6, 8]
+                                prob_per_related = remaining_prob / len(related_diseases)
+                                for disease_idx in related_diseases[:3]:
+                                    bio_probabilities[disease_idx] = prob_per_related
 
-                            st.success(f"**Biochemical Prediction:** {DISEASE_CLASSES[bio_prediction]}")
-                            st.info(f"**Biochemical Confidence:** {bio_probabilities[bio_prediction]*100:.2f}%")
+                                st.success(f"**Biochemical Prediction:** {DISEASE_CLASSES[bio_prediction]}")
+                                st.info(f"**Biochemical Confidence:** {bio_probabilities[bio_prediction]*100:.2f}%")
 
-                            if cnn_model is not None:
-                                st.markdown("#### Image Analysis Result")
-                                cnn_pred = cnn_model.predict(np.expand_dims(processed_image, axis=0))
-                                image_prediction = np.argmax(cnn_pred[0])
-                                image_probabilities = cnn_pred[0]
+                                if cnn_model is not None:
+                                    st.markdown("#### Image Analysis Result")
+                                    cnn_pred = cnn_model.predict(np.expand_dims(processed_image, axis=0))
+                                    image_prediction = np.argmax(cnn_pred[0])
+                                    image_probabilities = cnn_pred[0]
 
-                                st.success(f"**Image Prediction:** {DISEASE_CLASSES[image_prediction]}")
-                                st.info(f"**Image Confidence:** {image_probabilities[image_prediction]*100:.2f}%")
+                                    st.success(f"**Image Prediction:** {DISEASE_CLASSES[image_prediction]}")
+                                    st.info(f"**Image Confidence:** {image_probabilities[image_prediction]*100:.2f}%")
 
-                                # Combined confidence (simple average for demo)
-                                combined_prob = (bio_probabilities + image_probabilities) / 2
-                                combined_prediction = np.argmax(combined_prob)
+                                    # Combined confidence (simple average for demo)
+                                    combined_prob = (bio_probabilities + image_probabilities) / 2
+                                    combined_prediction = np.argmax(combined_prob)
 
-                                st.markdown("#### Combined Analysis Result")
-                                st.success(f"**Combined Prediction:** {DISEASE_CLASSES[combined_prediction]}")
-                                st.info(f"**Combined Confidence:** {combined_prob[combined_prediction]*100:.2f}%")
+                                    st.markdown("#### Combined Analysis Result")
+                                    st.success(f"**Combined Prediction:** {DISEASE_CLASSES[combined_prediction]}")
+                                    st.info(f"**Combined Confidence:** {combined_prob[combined_prediction]*100:.2f}%")
+                                else:
+                                    st.warning("CNN model not available for image analysis in combined mode.")
+                            except Exception as e:
+                                st.error(f"Combined analysis failed: {str(e)}")
+                                st.info("Biochemical analysis completed, but image processing encountered an error.")
 
         else:
             st.warning("Prediction models not available.")

@@ -6,7 +6,7 @@ keras
 xgboost
 matplotlib
 seaborn
-opencv-python
+opencv-python-headless
 pillow
 flask
 streamlit
