@@ -1,0 +1,24 @@
+class,roc_auc
+Acute Liver Failure,1.0
+Gallstones,0.9968148845881198
+Primary Biliary Cholangitis,0.9946964751958225
+Perforation,0.9907032538611487
+Polyps and Cholesterol Crystals,0.9862114448051948
+Membranous and Gangrenous Cholecystitis,0.985882927389706
+Carcinoma,0.9841835171568627
+Abdomen and Retroperitoneum,0.9836451987235277
+Adenomyomatosis,0.9781776378267606
+Hepatitis C,0.9759930436535942
+Hepatitis B,0.9757434897785775
+Various Causes of Gallbladder Wall Thickening,0.9708087649758864
+Non-Alcoholic Fatty Liver Disease (NAFLD),0.9701883585894349
+Primary Sclerosing Cholangitis,0.9685050944939042
+Liver Cancer,0.9669415704503423
+Alcoholic Liver Disease,0.966245537431887
+Cirrhosis,0.9631079122307193
+Cholecystitis,0.9626699571614825
+Autoimmune Hepatitis,0.9549608355091384
+Drug-Induced Liver Injury,0.9546048334421947
+Hepatitis A,0.9464804989128781
+Hemochromatosis,0.9457462201031278
+Wilson Disease,0.9323653804229344

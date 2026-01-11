@@ -1,0 +1,17 @@
+pandas
+numpy
+scikit-learn
+tensorflow
+keras
+xgboost
+matplotlib
+seaborn
+opencv-python
+pillow
+flask
+streamlit
+joblib
+shap
+eli5
+plotly
+python-docx
