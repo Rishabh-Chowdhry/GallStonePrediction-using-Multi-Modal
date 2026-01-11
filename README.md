@@ -39,10 +39,10 @@ This project implements a comprehensive machine learning pipeline for multiclass
 
 ### 📊 **Key Results**
 
-- **Best Model**: XGBoost with 75.3% F1-Score
-- **Accuracy**: 75.3%
-- **Precision**: 76.1%
-- **Recall**: 75.7%
+- **Best Model**: XGBoost with 65.5% F1-Score
+- **Accuracy**: 65.5%
+- **Precision**: 65.7%
+- **Recall**: 65.7%
 
 ### 🚀 **Deployment Options**
 
