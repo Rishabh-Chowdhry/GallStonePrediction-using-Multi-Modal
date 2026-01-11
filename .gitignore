@@ -79,7 +79,7 @@ dist/
 *.db
 data/
 datasets/
-models/
+# models/
 *.pkl
 *.joblib
 *.h5
