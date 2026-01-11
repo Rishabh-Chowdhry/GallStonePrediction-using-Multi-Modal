@@ -251,12 +251,17 @@ def load_models():
             bio_scaler = scaler
             bio_feature_names = feature_names[:7] if len(feature_names) >= 7 else feature_names
 
-        # Try to load CNN model
+        # Try to load CNN model (may not be available in deployment)
         cnn_model = None
         try:
             import tensorflow as tf
-            cnn_model = tf.keras.models.load_model('models/cnn_model_full.keras')
-        except:
+            # Try different possible model files
+            for model_file in ['models/cnn_model_full.keras', 'models/cnn_model.keras', 'models/cnn_model.h5']:
+                if os.path.exists(model_file):
+                    cnn_model = tf.keras.models.load_model(model_file)
+                    break
+        except Exception as e:
+            # CNN model not available - this is expected in deployment
             pass
 
         return model, scaler, feature_names, cnn_model, bio_scaler, bio_feature_names
