@@ -79,7 +79,12 @@ dist/
 *.db
 data/
 datasets/
-# models/
+models/
 *.pkl
 *.joblib
 *.h5
+!models/best_model.pkl
+!models/scaler.pkl
+!models/feature_names.pkl
+!models/bio_scaler.pkl
+!models/bio_feature_names.pkl
